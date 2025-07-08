@@ -1,7 +1,7 @@
 import os
 import io
 from pathlib import Path
-from typing import str, List, Optional
+from typing import List, Optional
 
 import PyPDF2
 from docx import Document

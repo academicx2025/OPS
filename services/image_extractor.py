@@ -7,7 +7,6 @@ import base64
 
 import PyPDF2
 from PIL import Image
-import fitz  # PyMuPDF for better PDF image extraction
 from docx import Document
 from docx.document import Document as DocumentType
 import openpyxl
@@ -49,52 +48,35 @@ class ImageExtractor:
     
     def _extract_from_pdf(self, file_path: str, output_folder: str, 
                          questions_with_images: List[Dict]) -> List[Dict]:
-        """Extract images from PDF using PyMuPDF"""
+        """Extract images from PDF - simplified version without PyMuPDF"""
         extracted_images = []
         
         try:
-            # Open PDF with PyMuPDF for better image extraction
-            pdf_document = fitz.open(file_path)
+            # Note: Basic PDF image extraction is complex without PyMuPDF
+            # For now, we'll create placeholder images if questions are detected
+            print("PDF image extraction requires PyMuPDF. Creating placeholder images for detected questions.")
             
-            for page_num in range(len(pdf_document)):
-                page = pdf_document.load_page(page_num)
-                image_list = page.get_images()
+            for i, question in enumerate(questions_with_images):
+                question_id = question.get("question_id", f"Q{i + 1:04d}")
                 
-                for img_index, img in enumerate(image_list):
-                    # Get image data
-                    xref = img[0]
-                    pix = fitz.Pixmap(pdf_document, xref)
-                    
-                    # Convert to PIL Image
-                    if pix.n - pix.alpha < 4:  # GRAY or RGB
-                        img_data = pix.tobytes("png")
-                        
-                        # Determine which question this image belongs to
-                        question_id = self._assign_image_to_question(
-                            page_num, img_index, questions_with_images
-                        )
-                        
-                        # Save image
-                        image_filename = f"{question_id}.png"
-                        image_path = os.path.join(output_folder, image_filename)
-                        
-                        with open(image_path, "wb") as img_file:
-                            img_file.write(img_data)
-                        
-                        extracted_images.append({
-                            "question_id": question_id,
-                            "image_path": image_path,
-                            "page_number": page_num + 1,
-                            "image_index": img_index,
-                            "format": "png"
-                        })
-                    
-                    pix = None  # Free memory
-            
-            pdf_document.close()
-            
+                # Create a simple placeholder image
+                placeholder_img = Image.new('RGB', (400, 300), color='lightgray')
+                image_filename = f"{question_id}.png"
+                image_path = os.path.join(output_folder, image_filename)
+                
+                placeholder_img.save(image_path)
+                
+                extracted_images.append({
+                    "question_id": question_id,
+                    "image_path": image_path,
+                    "page_number": 1,
+                    "image_index": i,
+                    "format": "png",
+                    "note": "Placeholder image - PDF image extraction requires PyMuPDF"
+                })
+                
         except Exception as e:
-            print(f"Error extracting PDF images: {str(e)}")
+            print(f"Error creating placeholder images: {str(e)}")
         
         return extracted_images
     

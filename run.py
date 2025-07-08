@@ -14,17 +14,26 @@ load_dotenv()
 
 def check_dependencies():
     """Check if all required dependencies are installed"""
-    required_packages = [
-        'fastapi', 'uvicorn', 'openai', 'PyPDF2', 'python-docx', 
-        'openpyxl', 'Pillow', 'pytesseract', 'pandas', 'numpy'
-    ]
+    # Map package names to their import names
+    required_packages = {
+        'fastapi': 'fastapi',
+        'uvicorn': 'uvicorn',
+        'openai': 'openai',
+        'PyPDF2': 'PyPDF2',
+        'python-docx': 'docx',
+        'openpyxl': 'openpyxl',
+        'Pillow': 'PIL',
+        'pytesseract': 'pytesseract',
+        'pandas': 'pandas',
+        'numpy': 'numpy'
+    }
     
     missing_packages = []
-    for package in required_packages:
+    for package_name, import_name in required_packages.items():
         try:
-            __import__(package.replace('-', '_'))
+            __import__(import_name)
         except ImportError:
-            missing_packages.append(package)
+            missing_packages.append(package_name)
     
     if missing_packages:
         print("❌ Missing required packages:")
