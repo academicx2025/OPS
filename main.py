@@ -14,6 +14,8 @@ import uvicorn
 from services.file_processor import FileProcessor
 from services.openai_service import OpenAIService
 from services.metadata_service import MetadataService
+from services.enhanced_metadata_service import EnhancedMetadataService
+from services.image_extractor import ImageExtractor
 from models.question_model import QuestionData, QuestionQuality, MetadataTag
 
 app = FastAPI(title="Question Paper Generator", version="1.0.0")
@@ -34,6 +36,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 file_processor = FileProcessor()
 openai_service = OpenAIService()
 metadata_service = MetadataService()
+enhanced_metadata_service = EnhancedMetadataService()
+image_extractor = ImageExtractor()
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
@@ -46,10 +50,11 @@ async def process_file(
     file: UploadFile = File(...),
     output_folder: str = Form(...),
     include_quality_check: bool = Form(True),
+    extract_images: bool = Form(True),
     metadata_tags: str = Form("[]")
 ):
     """
-    Process uploaded file to extract questions and analyze quality
+    Process uploaded file to extract questions, analyze quality, and extract images
     """
     try:
         # Validate output folder
@@ -85,32 +90,66 @@ async def process_file(
                     quality = await openai_service.analyze_question_quality(question)
                     quality_results.append(quality)
             
-            # Generate metadata
-            metadata = metadata_service.generate_metadata(
-                filename=file.filename,
-                questions=questions,
-                quality_results=quality_results,
-                custom_tags=tags
-            )
+            # Prepare questions data for enhanced metadata generation
+            questions_data = []
+            for i, question in enumerate(questions):
+                question_data = {
+                    "text": question,
+                    "quality": quality_results[i] if i < len(quality_results) else {}
+                }
+                questions_data.append(question_data)
             
-            # Save results to output folder
-            output_file = await save_results(
-                output_folder, 
-                file.filename, 
-                questions, 
-                quality_results, 
-                metadata
+            # Extract images if requested
+            image_results = {}
+            if extract_images:
+                # Create image output folder
+                image_folder = os.path.join(output_folder, "question_images")
+                os.makedirs(image_folder, exist_ok=True)
+                
+                # Find questions that likely have images
+                questions_with_images = [
+                    {"question_id": f"Q{i+1:04d}", "text": q["text"]} 
+                    for i, q in enumerate(questions_data) 
+                    if enhanced_metadata_service._has_image_content(q["text"])
+                ]
+                
+                # Extract images from document
+                extracted_images = image_extractor.extract_images_from_document(
+                    tmp_file_path, image_folder, questions_with_images
+                )
+                
+                # Process extracted images
+                image_results = image_extractor.process_extracted_images(extracted_images)
+                
+                # Create image manifest
+                if extracted_images:
+                    manifest_path = image_extractor.create_image_manifest(image_folder, image_results)
+            
+            # Generate enhanced metadata
+            enhanced_results = enhanced_metadata_service.generate_enhanced_metadata(
+                questions_data, file.filename, output_folder
             )
             
             return JSONResponse({
                 "success": True,
-                "message": "File processed successfully",
+                "message": "File processed successfully with enhanced metadata",
                 "results": {
                     "extracted_questions": len(questions),
                     "quality_analyzed": len(quality_results),
-                    "output_file": output_file,
-                    "questions": questions[:5],  # Preview first 5 questions
-                    "metadata": metadata
+                    "images_extracted": image_results.get("total_images", 0) if extract_images else 0,
+                    "questions_with_images": image_results.get("questions_with_images", 0) if extract_images else 0,
+                    "json_file": enhanced_results["json_file"],
+                    "output_folder": output_folder,
+                    "preview_questions": [
+                        {
+                            "question_id": f"Q{i+1:04d}",
+                            "text": q["text"][:200] + "..." if len(q["text"]) > 200 else q["text"],
+                            "has_image": enhanced_metadata_service._has_image_content(q["text"])
+                        }
+                        for i, q in enumerate(questions_data[:5])
+                    ],
+                    "summary": enhanced_results["output_summary"]["metadata"],
+                    "image_details": image_results if extract_images else None
                 }
             })
             
@@ -151,34 +190,7 @@ async def get_supported_formats():
         ]
     })
 
-async def save_results(output_folder: str, filename: str, questions: List[str], 
-                      quality_results: List[Dict], metadata: Dict) -> str:
-    """
-    Save processing results to the specified output folder
-    """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base_name = Path(filename).stem
-    output_file = os.path.join(output_folder, f"{base_name}_processed_{timestamp}.json")
-    
-    results = {
-        "source_file": filename,
-        "processed_at": datetime.now().isoformat(),
-        "metadata": metadata,
-        "questions": []
-    }
-    
-    for i, question in enumerate(questions):
-        question_data = {
-            "id": i + 1,
-            "text": question,
-            "quality": quality_results[i] if i < len(quality_results) else None
-        }
-        results["questions"].append(question_data)
-    
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
-    
-    return output_file
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

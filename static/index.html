@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Paper Generator - AI-Powered Question Extraction</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        .file-upload-zone {
+            border: 2px dashed #d1d5db;
+            transition: all 0.3s ease;
+        }
+        .file-upload-zone:hover {
+            border-color: #667eea;
+            background-color: #f8fafc;
+        }
+        .file-upload-zone.dragover {
+            border-color: #667eea;
+            background-color: #e0e7ff;
+        }
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .feature-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+        .progress-bar {
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body class="min-h-screen gradient-bg">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-bold text-white mb-4">
+                <i class="fas fa-brain mr-3"></i>
+                Question Paper Generator
+            </h1>
+            <p class="text-xl text-white opacity-90">
+                AI-Powered Question Extraction from PDF, Word, Excel & Images
+            </p>
+        </div>
+
+        <!-- Features Overview -->
+        <div class="grid md:grid-cols-4 gap-6 mb-12">
+            <div class="feature-card glass-effect rounded-lg p-6 text-center text-white">
+                <i class="fas fa-file-pdf text-4xl mb-3 text-red-300"></i>
+                <h3 class="font-semibold mb-2">PDF Support</h3>
+                <p class="text-sm opacity-80">Extract from PDF documents</p>
+            </div>
+            <div class="feature-card glass-effect rounded-lg p-6 text-center text-white">
+                <i class="fas fa-file-word text-4xl mb-3 text-blue-300"></i>
+                <h3 class="font-semibold mb-2">Word & Excel</h3>
+                <p class="text-sm opacity-80">Support for DOCX & XLSX</p>
+            </div>
+            <div class="feature-card glass-effect rounded-lg p-6 text-center text-white">
+                <i class="fas fa-image text-4xl mb-3 text-green-300"></i>
+                <h3 class="font-semibold mb-2">Image OCR</h3>
+                <p class="text-sm opacity-80">Extract text from images</p>
+            </div>
+            <div class="feature-card glass-effect rounded-lg p-6 text-center text-white">
+                <i class="fas fa-robot text-4xl mb-3 text-purple-300"></i>
+                <h3 class="font-semibold mb-2">AI Analysis</h3>
+                <p class="text-sm opacity-80">Quality check & metadata</p>
+            </div>
+        </div>
+
+        <!-- Main Upload Form -->
+        <div class="glass-effect rounded-2xl p-8 mb-8">
+            <form id="uploadForm" class="space-y-6">
+                <!-- File Upload Area -->
+                <div class="space-y-4">
+                    <label class="block text-white text-lg font-semibold mb-2">
+                        <i class="fas fa-upload mr-2"></i>
+                        Upload Your Document
+                    </label>
+                    
+                    <div id="uploadZone" class="file-upload-zone rounded-lg p-8 text-center cursor-pointer">
+                        <div id="uploadContent">
+                            <i class="fas fa-cloud-upload-alt text-6xl text-gray-400 mb-4"></i>
+                            <p class="text-lg font-medium text-gray-600 mb-2">
+                                Drag & drop your file here, or click to browse
+                            </p>
+                            <p class="text-sm text-gray-500">
+                                Supports: PDF, DOCX, XLSX, JPG, PNG, TIFF
+                            </p>
+                        </div>
+                        <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.xlsx,.xls,.jpg,.jpeg,.png,.tiff,.tif" class="hidden">
+                    </div>
+                    
+                    <div id="filePreview" class="hidden bg-white rounded-lg p-4 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <i id="fileIcon" class="fas fa-file text-2xl mr-3 text-blue-500"></i>
+                                <div>
+                                    <p id="fileName" class="font-medium text-gray-800"></p>
+                                    <p id="fileSize" class="text-sm text-gray-500"></p>
+                                </div>
+                            </div>
+                            <button type="button" id="removeFile" class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Output Folder -->
+                <div class="space-y-2">
+                    <label for="outputFolder" class="block text-white text-lg font-semibold">
+                        <i class="fas fa-folder-open mr-2"></i>
+                        Output Folder Path
+                    </label>
+                    <input 
+                        type="text" 
+                        id="outputFolder" 
+                        name="outputFolder" 
+                        placeholder="/path/to/output/folder" 
+                        required
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                    <p class="text-sm text-white opacity-75">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Specify where to save extracted questions and images
+                    </p>
+                </div>
+
+                <!-- Options -->
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <h3 class="text-white text-lg font-semibold">
+                            <i class="fas fa-cogs mr-2"></i>
+                            Processing Options
+                        </h3>
+                        
+                        <label class="flex items-center text-white">
+                            <input type="checkbox" id="qualityCheck" name="qualityCheck" checked 
+                                   class="mr-3 h-4 w-4 text-blue-600 rounded focus:ring-blue-500">
+                            <span>Enable AI Quality Analysis</span>
+                        </label>
+                        
+                        <label class="flex items-center text-white">
+                            <input type="checkbox" id="extractImages" name="extractImages" checked 
+                                   class="mr-3 h-4 w-4 text-blue-600 rounded focus:ring-blue-500">
+                            <span>Extract Images from Document</span>
+                        </label>
+                    </div>
+
+                    <div class="space-y-4">
+                        <h3 class="text-white text-lg font-semibold">
+                            <i class="fas fa-tags mr-2"></i>
+                            Custom Tags (Optional)
+                        </h3>
+                        
+                        <div id="tagsContainer" class="space-y-2">
+                            <!-- Custom tags will be added here -->
+                        </div>
+                        
+                        <button type="button" id="addTag" class="text-blue-200 hover:text-white text-sm">
+                            <i class="fas fa-plus mr-1"></i>
+                            Add Custom Tag
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="text-center pt-6">
+                    <button 
+                        type="submit" 
+                        id="submitBtn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg text-lg transition duration-300 transform hover:scale-105 shadow-lg"
+                    >
+                        <i class="fas fa-magic mr-2"></i>
+                        Process Document
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Progress Bar -->
+        <div id="progressContainer" class="hidden glass-effect rounded-lg p-6 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-white text-lg font-semibold">
+                    <i class="fas fa-cog loading-spinner mr-2"></i>
+                    Processing Your Document...
+                </h3>
+                <span id="progressText" class="text-white text-sm">0%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-3">
+                <div id="progressBar" class="progress-bar bg-blue-600 h-3 rounded-full"></div>
+            </div>
+            <p id="progressMessage" class="text-white text-sm mt-2 opacity-75">Initializing...</p>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsContainer" class="hidden glass-effect rounded-2xl p-8">
+            <h2 class="text-2xl font-bold text-white mb-6">
+                <i class="fas fa-check-circle mr-2 text-green-300"></i>
+                Processing Complete!
+            </h2>
+            
+            <div id="resultsContent" class="space-y-6">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorContainer" class="hidden bg-red-500 text-white p-4 rounded-lg mb-4">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <span id="errorMessage"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let selectedFile = null;
+        let customTags = [];
+
+        // DOM elements
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const filePreview = document.getElementById('filePreview');
+        const uploadForm = document.getElementById('uploadForm');
+        const progressContainer = document.getElementById('progressContainer');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const errorContainer = document.getElementById('errorContainer');
+
+        // File upload handling
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', handleDragOver);
+        uploadZone.addEventListener('drop', handleDrop);
+        uploadZone.addEventListener('dragleave', handleDragLeave);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        function handleFile(file) {
+            selectedFile = file;
+            showFilePreview(file);
+        }
+
+        function showFilePreview(file) {
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            const fileIcon = document.getElementById('fileIcon');
+
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+
+            // Set appropriate icon based on file type
+            const extension = file.name.split('.').pop().toLowerCase();
+            const iconMap = {
+                'pdf': 'fas fa-file-pdf text-red-500',
+                'docx': 'fas fa-file-word text-blue-500',
+                'doc': 'fas fa-file-word text-blue-500',
+                'xlsx': 'fas fa-file-excel text-green-500',
+                'xls': 'fas fa-file-excel text-green-500',
+                'jpg': 'fas fa-file-image text-purple-500',
+                'jpeg': 'fas fa-file-image text-purple-500',
+                'png': 'fas fa-file-image text-purple-500',
+                'tiff': 'fas fa-file-image text-purple-500'
+            };
+
+            fileIcon.className = iconMap[extension] || 'fas fa-file text-gray-500';
+            filePreview.classList.remove('hidden');
+            document.getElementById('uploadContent').style.display = 'none';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Remove file
+        document.getElementById('removeFile').addEventListener('click', () => {
+            selectedFile = null;
+            filePreview.classList.add('hidden');
+            document.getElementById('uploadContent').style.display = 'block';
+            fileInput.value = '';
+        });
+
+        // Custom tags handling
+        document.getElementById('addTag').addEventListener('click', addCustomTag);
+
+        function addCustomTag() {
+            const container = document.getElementById('tagsContainer');
+            const tagDiv = document.createElement('div');
+            tagDiv.className = 'flex space-x-2';
+            tagDiv.innerHTML = `
+                <input type="text" placeholder="Tag Key" class="flex-1 px-3 py-2 rounded border border-gray-300 text-sm">
+                <input type="text" placeholder="Tag Value" class="flex-1 px-3 py-2 rounded border border-gray-300 text-sm">
+                <button type="button" onclick="removeTag(this)" class="text-red-500 hover:text-red-700 px-2">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            container.appendChild(tagDiv);
+        }
+
+        function removeTag(button) {
+            button.parentElement.remove();
+        }
+
+        // Form submission
+        uploadForm.addEventListener('submit', handleSubmit);
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+
+            if (!selectedFile) {
+                showError('Please select a file to upload.');
+                return;
+            }
+
+            const outputFolder = document.getElementById('outputFolder').value.trim();
+            if (!outputFolder) {
+                showError('Please specify an output folder path.');
+                return;
+            }
+
+            hideError();
+            showProgress();
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('output_folder', outputFolder);
+            formData.append('include_quality_check', document.getElementById('qualityCheck').checked);
+            formData.append('extract_images', document.getElementById('extractImages').checked);
+
+            // Collect custom tags
+            const tagInputs = document.querySelectorAll('#tagsContainer > div');
+            const tags = [];
+            tagInputs.forEach(tagDiv => {
+                const inputs = tagDiv.querySelectorAll('input');
+                if (inputs[0].value.trim() && inputs[1].value.trim()) {
+                    tags.push({
+                        key: inputs[0].value.trim(),
+                        value: inputs[1].value.trim(),
+                        category: 'custom'
+                    });
+                }
+            });
+            formData.append('metadata_tags', JSON.stringify(tags));
+
+            try {
+                const response = await fetch('/api/process-file', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    hideProgress();
+                    showResults(result.results);
+                } else {
+                    throw new Error(result.detail || 'Processing failed');
+                }
+            } catch (error) {
+                hideProgress();
+                showError('Error processing file: ' + error.message);
+            }
+        }
+
+        function showProgress() {
+            progressContainer.classList.remove('hidden');
+            resultsContainer.classList.add('hidden');
+
+            // Simulate progress
+            let progress = 0;
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progressMessage = document.getElementById('progressMessage');
+
+            const messages = [
+                'Extracting text content...',
+                'Identifying questions...',
+                'Analyzing question quality...',
+                'Extracting images...',
+                'Generating metadata...',
+                'Finalizing results...'
+            ];
+
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+
+                progressBar.style.width = progress + '%';
+                progressText.textContent = Math.round(progress) + '%';
+
+                const messageIndex = Math.floor((progress / 100) * messages.length);
+                if (messageIndex < messages.length) {
+                    progressMessage.textContent = messages[messageIndex];
+                }
+            }, 500);
+
+            // Store interval ID to clear it later
+            progressContainer.intervalId = interval;
+        }
+
+        function hideProgress() {
+            progressContainer.classList.add('hidden');
+            if (progressContainer.intervalId) {
+                clearInterval(progressContainer.intervalId);
+            }
+            // Reset progress
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+        }
+
+        function showResults(results) {
+            resultsContainer.classList.remove('hidden');
+            const resultsContent = document.getElementById('resultsContent');
+
+            resultsContent.innerHTML = `
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white bg-opacity-20 rounded-lg p-4 text-center">
+                        <div class="text-3xl font-bold text-white">${results.extracted_questions}</div>
+                        <div class="text-sm text-white opacity-75">Questions Extracted</div>
+                    </div>
+                    <div class="bg-white bg-opacity-20 rounded-lg p-4 text-center">
+                        <div class="text-3xl font-bold text-white">${results.quality_analyzed}</div>
+                        <div class="text-sm text-white opacity-75">Quality Analyzed</div>
+                    </div>
+                    <div class="bg-white bg-opacity-20 rounded-lg p-4 text-center">
+                        <div class="text-3xl font-bold text-white">${results.images_extracted || 0}</div>
+                        <div class="text-sm text-white opacity-75">Images Extracted</div>
+                    </div>
+                    <div class="bg-white bg-opacity-20 rounded-lg p-4 text-center">
+                        <div class="text-3xl font-bold text-white">${results.questions_with_images || 0}</div>
+                        <div class="text-sm text-white opacity-75">With Diagrams</div>
+                    </div>
+                </div>
+
+                <div class="bg-white bg-opacity-10 rounded-lg p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-4">
+                        <i class="fas fa-download mr-2"></i>
+                        Download Results
+                    </h3>
+                    <div class="flex flex-wrap gap-4">
+                        <a href="/download/${results.json_file.split('/').pop()}" download 
+                           class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg inline-flex items-center transition duration-300">
+                            <i class="fas fa-file-download mr-2"></i>
+                            Download JSON Metadata
+                        </a>
+                        ${results.images_extracted > 0 ? `
+                        <button onclick="downloadImages('${results.output_folder}')" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg inline-flex items-center transition duration-300">
+                            <i class="fas fa-images mr-2"></i>
+                            Download Images (${results.images_extracted})
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+
+                <div class="bg-white bg-opacity-10 rounded-lg p-6">
+                    <h3 class="text-xl font-semibold text-white mb-4">
+                        <i class="fas fa-eye mr-2"></i>
+                        Preview Questions
+                    </h3>
+                    <div class="space-y-4">
+                        ${results.preview_questions.map(q => `
+                            <div class="bg-white bg-opacity-20 rounded-lg p-4">
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="font-semibold text-white">${q.question_id}</span>
+                                    ${q.has_image ? '<span class="bg-blue-500 text-white px-2 py-1 rounded text-xs"><i class="fas fa-image mr-1"></i>Has Diagram</span>' : ''}
+                                </div>
+                                <p class="text-white opacity-90">${q.text}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorContainer.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorContainer.classList.add('hidden');
+        }
+
+        function downloadImages(outputFolder) {
+            // This would typically create a zip file of images
+            alert('Image download functionality would be implemented here. Images are saved in: ' + outputFolder + '/question_images/');
+        }
+
+        // Set default output folder
+        document.getElementById('outputFolder').value = '/tmp/question_extraction_output';
+    </script>
+</body>
+</html>
